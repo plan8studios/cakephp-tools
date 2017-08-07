@@ -5,6 +5,7 @@ namespace Tools\Mailer;
 use Cake\Core\Configure;
 use Cake\Log\LogTrait;
 use Cake\Mailer\Email as CakeEmail;
+use Cake\Mailer\Transport\DebugTransport;
 use InvalidArgumentException;
 use Psr\Log\LogLevel;
 use Tools\Utility\Mime;
@@ -18,13 +19,6 @@ class Email extends CakeEmail {
 	 * @var int|null
 	 */
 	protected $_wrapLength = null;
-
-	/**
-	 * @deprecated Since CakePHP 3.4.0-RC4 in core
-	 *
-	 * @var int|null
-	 */
-	protected $_priority = null;
 
 	/**
 	 * @var string|null
@@ -42,28 +36,21 @@ class Email extends CakeEmail {
 	protected $_log = [];
 
 	/**
+	 * @var string
+	 */
+	protected $config;
+
+	/**
 	 * @param string|null $config
 	 */
 	public function __construct($config = null) {
 		if ($config === null) {
 			$config = 'default';
 		}
-		parent::__construct($config);
-	}
 
-	/**
-	 * Change the layout
-	 *
-	 * @deprecated Since CakePHP 3.4.0-RC4 in core as getLayout()/setLayout()
-	 *
-	 * @param string|bool $layout Layout to use (or false to use none)
-	 * @return $this
-	 */
-	public function layout($layout = false) {
-		if ($layout !== false) {
-			$this->_layout = $layout;
-		}
-		return $this;
+		$this->config = $config;
+
+		parent::__construct($config);
 	}
 
 	/**
@@ -84,38 +71,6 @@ class Email extends CakeEmail {
 	 */
 	public function getWrapLength() {
 		return $this->_wrapLength;
-	}
-
-	/**
-	 * Set/Get wrapLength
-	 *
-	 * @deprecated Use setWrapLenght()/getWrapLength() instead.
-	 *
-	 * @param int|null $length Must not be more than CakeEmail::LINE_LENGTH_MUST
-	 * @return int|$this
-	 */
-	public function wrapLength($length = null) {
-		if ($length === null) {
-			return $this->getWrapLength();
-		}
-
-		return $this->setWrapLength($length);
-	}
-
-	/**
-	 * Set/Get priority
-	 *
-	 * @deprecated Since CakePHP 3.4.0-RC4 in core as setPriority()/getPriority()
-	 *
-	 * @param int|null $priority 1 (highest) to 5 (lowest)
-	 * @return int|$this
-	 */
-	public function priority($priority = null) {
-		if ($priority === null) {
-			return $this->_priority;
-		}
-		$this->_priority = $priority;
-		return $this;
 	}
 
 	/**
@@ -141,11 +96,12 @@ class Email extends CakeEmail {
 	 */
 	public function reset() {
 		parent::reset();
-		$this->_priority = null;
 		$this->_wrapLength = null;
 
 		$this->_error = null;
 		$this->_debug = null;
+
+		$this->setProfile($this->config);
 	}
 
 	/**
@@ -177,20 +133,6 @@ class Email extends CakeEmail {
 		}
 
 		return $this;
-	}
-
-	/**
-	 * @deprecated Since CakePHP 3.4.0 - use setProfile()/getProfile() instead.
-	 *
-	 * @param mixed $config
-	 * @return string|null|$this
-	 */
-	public function profile($config = null) {
-		if ($config === null) {
-			return $this->_profile;
-		}
-
-		return $this->setProfile($config);
 	}
 
 	/**
@@ -233,20 +175,6 @@ class Email extends CakeEmail {
 		$this->_attachments = $attach;
 
 		return $this;
-	}
-
-	/**
-	 * @deprecated Since CakePHP 3.4.0 - use setAttachments()/getAttachments() instead.
-	 *
-	 * @param mixed|null $attachments
-	 * @return array|$this
-	 */
-	public function attachments($attachments = null) {
-		if ($attachments === null) {
-			return $this->_attachments;
-		}
-
-		return $this->setAttachments($attachments);
 	}
 
 	/**
@@ -324,21 +252,15 @@ class Email extends CakeEmail {
 	 *
 	 * @param string $file Absolute path
 	 * @param string|null $name (optional)
-	 * @param array|string|null $options Options - string CID is deprecated
-	 * @param array $notUsed Former Options @deprecated 4th param is now 3rd since CakePHP 3.4.0 - Use addEmbeddedAttachmentByContentId() otherwise.
+	 * @param array $options Options
 	 * @return string CID ($this is deprecated!)
 	 */
-	public function addEmbeddedAttachment($file, $name = null, $options = null, array $notUsed = []) {
+	public function addEmbeddedAttachment($file, $name = null, array $options = []) {
 		if (empty($name)) {
 			$name = basename($file);
 		}
 
 		$contentId = null;
-		// Deprecated $contentId here
-		if (!is_array($options)) {
-			$contentId = $options;
-			$options = $notUsed;
-		}
 
 		$name = pathinfo($name, PATHINFO_FILENAME) . '_' . md5($file) . '.' . pathinfo($name, PATHINFO_EXTENSION);
 		if ($contentId === null && ($cid = $this->_isEmbeddedAttachment($file, $name))) {
@@ -400,22 +322,16 @@ class Email extends CakeEmail {
 	 * @param string $content Blob data
 	 * @param string $filename to attach it
 	 * @param string|null $mimeType (leave it empty to get mimetype from $filename)
-	 * @param array|string|null $options Options - string CID is deprecated
-	 * @param array $notUsed
-	 * @return string CID CcontentId ($this is deprecated)
+	 * @param array $options
+	 * @return string CID ContentId ($this is deprecated)
 	 */
-	public function addEmbeddedBlobAttachment($content, $filename, $mimeType = null, $options = null, array $notUsed = []) {
+	public function addEmbeddedBlobAttachment($content, $filename, $mimeType = null, array $options = []) {
 		if ($mimeType === null) {
 			$ext = pathinfo($filename, PATHINFO_EXTENSION);
 			$mimeType = $this->_getMimeByExtension($ext);
 		}
 
 		$contentId = null;
-		// Deprecated $contentId here
-		if (!is_array($options)) {
-			$contentId = $options;
-			$options = $notUsed;
-		}
 
 		$filename = pathinfo($filename, PATHINFO_FILENAME) . '_' . md5($content) . '.' . pathinfo($filename, PATHINFO_EXTENSION);
 		if ($contentId === null && ($cid = $this->_isEmbeddedBlobAttachment($content, $filename))) {
@@ -564,15 +480,9 @@ class Email extends CakeEmail {
 			'transport' => get_class($this->_transport),
 		];
 
-		/** @deprecated Since CakePHP 3.4.0-RC4 in core */
-		if ($this->_priority) {
-			$this->_headers['X-Priority'] = $this->_priority;
-		}
-
 		// if not live, just log but do not send any mails //TODO: remove and use Debug Transport!
 		if (!Configure::read('Config.live')) {
-			$this->_logEmail();
-			return true;
+			$this->setTransport(new DebugTransport());
 		}
 
 		// Security measure to not sent to the actual addressee in debug mode while email sending is live
@@ -729,12 +639,21 @@ class Email extends CakeEmail {
 	}
 
 	/**
-	 * Returns the error if existent
+	 * Returns the error if existent.
 	 *
-	 * @return string
+	 * @return string|null
 	 */
 	public function getError() {
 		return $this->_error;
+	}
+
+	/**
+	 * Returns the debug data returned from transport if existent.
+	 *
+	 * @return string|null
+	 */
+	public function getDebug() {
+		return $this->_debug;
 	}
 
 }

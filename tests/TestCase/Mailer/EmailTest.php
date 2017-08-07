@@ -26,13 +26,14 @@ class EmailTest extends TestCase {
 	 */
 	public function setUp() {
 		parent::setUp();
-		$this->Email = new TestEmail();
 
 		Email::configTransport('debug', [
 			'className' => 'Debug'
 		]);
 
 		Configure::delete('Config.xMailer');
+
+		$this->Email = new TestEmail();
 	}
 
 	/**
@@ -141,7 +142,7 @@ class EmailTest extends TestCase {
 		$this->Email->addAttachment($file, 'x.jpg');
 		$res = $this->Email->send('test_custom_filename');
 
-		$this->assertTrue((bool)$res);
+		$this->assertTrue((bool)$res, $this->Email->getError());
 	}
 
 	/**
@@ -308,8 +309,7 @@ html-part
 		$options = [
 			'contentDisposition' => true,
 		];
-		$cid = 'abcdef';
-		$this->Email->addEmbeddedBlobAttachment(file_get_contents($file), 'my_other_hotel.png', 'image/jpeg', $cid, $options);
+		$cidNext = $this->Email->addEmbeddedBlobAttachment(file_get_contents($file), 'my_other_hotel.png', 'image/jpeg', $options);
 
 		$res = $this->Email->getProtected('attachments');
 		$this->assertSame(2, count($res));
@@ -430,7 +430,7 @@ sjdf ojdshfdsf odsfh dsfhodsf hodshfhdsjdshfjdshfjdshfj dsjfh jdsfh ojds hfposjd
 </body></html>
 HTML;
 		//$html = str_replace(array("\r\n", "\n", "\r"), "", $html);
-		$this->Email->wrapLength(100);
+		$this->Email->setWrapLength(100);
 		$is = $this->Email->wrap($html);
 
 		foreach ($is as $line => $content) {
