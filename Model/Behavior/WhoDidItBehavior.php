@@ -43,7 +43,7 @@ class WhoDidItBehavior extends ModelBehavior {
 		'modified_by_field' => 'modified_by', // Name of the "modified_by" field in the model
 		'confirmed_by_field' => 'confirmed_by', // Name of the "confirmed by" field in the model
 		'auto_bind' => true, // Automatically bind the model to the User model (default true)
-		'force_modified' => false // Force update of the "modified" field even if not empty
+		'force_modified' => true // Force update of the "modified" field even if not empty
 	];
 
 	/**
